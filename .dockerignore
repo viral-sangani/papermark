@@ -1,0 +1,16 @@
+# Keep secrets and build artifacts out of the Docker build context/image.
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+node_modules
+.next
+.trigger
+.agents
+tinybird/.tinyb
+*.log
+build.log
+.cursor
+npm-debug.log*
+README.md
