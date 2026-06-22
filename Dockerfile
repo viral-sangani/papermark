@@ -53,6 +53,9 @@ ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL \
     NEXT_PUBLIC_UPLOAD_TRANSPORT=$NEXT_PUBLIC_UPLOAD_TRANSPORT
 
 # Prisma client + Next.js production build.
+# Raise Node's heap cap — the default (~2GB) OOMs on this large Next.js build
+# even though the host has plenty of RAM.
+ENV NODE_OPTIONS=--max-old-space-size=6144
 RUN pnpm prisma generate && pnpm build
 
 # ---- runtime ---------------------------------------------------------------
