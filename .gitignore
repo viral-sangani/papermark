@@ -73,3 +73,7 @@ changelog
 _public/
 
 .opencode
+# Production env (secrets) — never commit
+.env.production
+.env.*
+!.env.example
