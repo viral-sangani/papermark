@@ -39,9 +39,10 @@ services:
         condition: service_healthy
       srh:
         condition: service_started
-    # Apply DB migrations on boot, then start.
+    # Apply DB migrations on boot, then start. Call `next start` directly so the
+    # host/port flags aren't swallowed by pnpm's `--` separator.
     command: >
-      sh -c "pnpm prisma migrate deploy && pnpm start -- -H 0.0.0.0 -p 3000"
+      sh -c "pnpm prisma migrate deploy && pnpm exec next start -H 0.0.0.0 -p 3000"
 
   postgres:
     image: postgres:16-alpine

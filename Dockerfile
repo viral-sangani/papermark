@@ -80,4 +80,5 @@ COPY --from=builder /app ./
 
 EXPOSE 3000
 # Bind to all interfaces; the host maps this to an internal port.
-CMD ["pnpm", "start", "--", "-H", "0.0.0.0", "-p", "3000"]
+# Call next directly so the -H/-p flags aren't swallowed by pnpm's `--`.
+CMD ["pnpm", "exec", "next", "start", "-H", "0.0.0.0", "-p", "3000"]
