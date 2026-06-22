@@ -20,10 +20,18 @@ function isAnalyticsPath(path: string) {
 }
 
 function isCustomDomain(host: string) {
+  // The self-hosted app host (e.g. dataroom.cesto.co) must be treated as the
+  // APP host, not a per-document custom domain. Honor NEXT_PUBLIC_APP_BASE_HOST
+  // so a self-hosted instance on any domain serves /login, /dashboard, etc.
+  const appHost = process.env.NEXT_PUBLIC_APP_BASE_HOST?.toLowerCase().trim();
+  const requestHost = host?.split(":")[0]?.toLowerCase().trim();
+  const isAppHost = !!appHost && requestHost === appHost;
+
   return (
     (process.env.NODE_ENV === "development" &&
       (host?.includes(".local") || host?.includes("papermark.dev"))) ||
     (process.env.NODE_ENV !== "development" &&
+      !isAppHost &&
       !(
         host?.includes("localhost") ||
         host?.includes("papermark.io") ||
