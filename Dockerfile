@@ -15,17 +15,43 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable
+# Pin pnpm to the version that produced pnpm-lock.yaml (v9 lockfile, pnpm 10.x).
+# Newer pnpm (11.x, which corepack pulls by default) is stricter and rejects the
+# integrity-less xlsx CDN tarball, breaking a frozen install.
+RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
 
 # Install dependencies against the lockfile.
-COPY package.json pnpm-lock.yaml ./
+# Copy .npmrc too so the supply-chain age gate (minimumReleaseAge) is disabled —
+# the lockfile is already pinned/vetted, and a fresh build "today" would
+# otherwise reject very-recently-published deps.
+COPY package.json pnpm-lock.yaml .npmrc ./
 COPY prisma ./prisma
+# Belt-and-suspenders: also disable the age gate via env in case the .npmrc key
+# name differs across pnpm versions.
+ENV npm_config_minimum_release_age=0
+ENV PNPM_CONFIG_MINIMUM_RELEASE_AGE=0
 # Allow native build scripts (prisma generate runs via postinstall).
-RUN pnpm install --frozen-lockfile --prod=false
+RUN pnpm install --frozen-lockfile --prod=false --config.minimumReleaseAge=0
 
 # Copy the rest of the source and build.
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# NEXT_PUBLIC_* values are inlined at build time, so they must be present during
+# `next build`. They are public (not secrets), passed as build args from compose.
+ARG NEXT_PUBLIC_BASE_URL
+ARG NEXT_PUBLIC_MARKETING_URL
+ARG NEXT_PUBLIC_APP_BASE_HOST
+ARG NEXT_PUBLIC_WEBHOOK_BASE_URL
+ARG NEXT_PUBLIC_WEBHOOK_BASE_HOST
+ARG NEXT_PUBLIC_UPLOAD_TRANSPORT
+ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL \
+    NEXT_PUBLIC_MARKETING_URL=$NEXT_PUBLIC_MARKETING_URL \
+    NEXT_PUBLIC_APP_BASE_HOST=$NEXT_PUBLIC_APP_BASE_HOST \
+    NEXT_PUBLIC_WEBHOOK_BASE_URL=$NEXT_PUBLIC_WEBHOOK_BASE_URL \
+    NEXT_PUBLIC_WEBHOOK_BASE_HOST=$NEXT_PUBLIC_WEBHOOK_BASE_HOST \
+    NEXT_PUBLIC_UPLOAD_TRANSPORT=$NEXT_PUBLIC_UPLOAD_TRANSPORT
+
 # Prisma client + Next.js production build.
 RUN pnpm prisma generate && pnpm build
 
@@ -41,7 +67,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable
+# Pin pnpm to the version that produced pnpm-lock.yaml (v9 lockfile, pnpm 10.x).
+# Newer pnpm (11.x, which corepack pulls by default) is stricter and rejects the
+# integrity-less xlsx CDN tarball, breaking a frozen install.
+RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
 
 # Bring over the built app and its dependencies.
 COPY --from=builder /app ./

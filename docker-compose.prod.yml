@@ -17,6 +17,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # NEXT_PUBLIC_* are inlined at build time; pass them through from the env
+      # file so `next build` produces correct public URLs/hosts.
+      args:
+        NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
+        NEXT_PUBLIC_MARKETING_URL: ${NEXT_PUBLIC_MARKETING_URL}
+        NEXT_PUBLIC_APP_BASE_HOST: ${NEXT_PUBLIC_APP_BASE_HOST}
+        NEXT_PUBLIC_WEBHOOK_BASE_URL: ${NEXT_PUBLIC_WEBHOOK_BASE_URL}
+        NEXT_PUBLIC_WEBHOOK_BASE_HOST: ${NEXT_PUBLIC_WEBHOOK_BASE_HOST}
+        NEXT_PUBLIC_UPLOAD_TRANSPORT: ${NEXT_PUBLIC_UPLOAD_TRANSPORT}
     container_name: papermark-app
     restart: unless-stopped
     env_file:
