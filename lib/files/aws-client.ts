@@ -17,6 +17,9 @@ export const getS3Client = (storageRegion?: string) => {
 
   return new S3Client({
     endpoint: config.endpoint || undefined,
+    // Path-style addressing is required for S3-compatible endpoints like MinIO
+    // (which serve buckets as <endpoint>/<bucket>, not <bucket>.<endpoint>).
+    forcePathStyle: config.endpoint ? true : undefined,
     region: config.region,
     credentials: {
       accessKeyId: config.accessKeyId,
@@ -36,6 +39,7 @@ export const getS3ClientForTeam = async (teamId: string) => {
 
   return new S3Client({
     endpoint: config.endpoint || undefined,
+    forcePathStyle: config.endpoint ? true : undefined,
     region: config.region,
     credentials: {
       accessKeyId: config.accessKeyId,
@@ -98,6 +102,7 @@ export const getTeamS3ClientAndConfig = async (teamId: string) => {
 
   const client = new S3Client({
     endpoint: config.endpoint || undefined,
+    forcePathStyle: config.endpoint ? true : undefined,
     region: config.region,
     credentials: {
       accessKeyId: config.accessKeyId,

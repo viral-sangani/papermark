@@ -84,14 +84,21 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
-    PasskeyProvider({
-      tenant: hanko,
-      async authorize({ userId }) {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) return null;
-        return user;
-      },
-    }),
+    // Passkey login is only available when Hanko is configured.
+    ...(hanko
+      ? [
+          PasskeyProvider({
+            tenant: hanko,
+            async authorize({ userId }) {
+              const user = await prisma.user.findUnique({
+                where: { id: userId },
+              });
+              if (!user) return null;
+              return user;
+            },
+          }),
+        ]
+      : []),
     {
       id: "saml",
       name: "BoxyHQ SAML",

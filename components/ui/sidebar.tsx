@@ -116,23 +116,31 @@ const SidebarProvider = React.forwardRef<
     const isMobile = useIsMobile();
     const [openMobile, setOpenMobile] = React.useState(false);
 
-    // Read initial state from cookie
-    const initialState = React.useMemo(() => {
-      if (typeof window === "undefined") return defaultOpen;
+    // This is the internal state of the sidebar.
+    // We use openProp and setOpenProp for control from outside the component.
+    //
+    // IMPORTANT (hydration): initialize from `defaultOpen` only — the same value
+    // the server renders. Reading the persisted cookie here would make the
+    // client's first render differ from the server HTML (data-state
+    // "expanded" vs "collapsed") and throw a hydration mismatch. Instead we
+    // restore the cookie value in an effect, after hydration has completed.
+    const [_open, _setOpen] = React.useState(defaultOpen);
+    const open = openProp ?? _open;
+
+    // Restore the persisted sidebar state from the cookie after mount.
+    React.useEffect(() => {
+      if (openProp !== undefined) return; // controlled — ignore cookie
       const cookie = document.cookie
         .split("; ")
         .find((row) => row.startsWith(SIDEBAR_COOKIE_NAME));
       if (cookie) {
-        const value = cookie.split("=")[1];
-        return value === "true";
+        const value = cookie.split("=")[1] === "true";
+        if (value !== defaultOpen) {
+          _setOpen(value);
+        }
       }
-      return defaultOpen;
-    }, [defaultOpen]);
-
-    // This is the internal state of the sidebar.
-    // We use openProp and setOpenProp for control from outside the component.
-    const [_open, _setOpen] = React.useState(initialState);
-    const open = openProp ?? _open;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
         const openState = typeof value === "function" ? value(open) : value;

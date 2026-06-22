@@ -1,0 +1,15 @@
+DESCRIPTION >
+    Get the total duration for a document across the given views
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        SUM(duration) AS sum_duration
+    FROM
+        page_views__v3
+    WHERE
+        documentId = {{ String(documentId, required=True)}}
+        AND viewId IN splitByChar(',', {{ String(viewIds, required=True) }})
+
+TYPE endpoint

@@ -1,0 +1,20 @@
+DESCRIPTION >
+    Get the total duration per view for a dataroom
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        viewId,
+        SUM(duration) AS sum_duration
+    FROM
+        page_views__v3
+    WHERE
+        dataroomId = {{ String(dataroomId, required=true) }}
+        AND time >= {{ Int64(since, required=true) }}
+        AND linkId NOT IN {{ Array(excludedLinkIds, String) }}
+        AND viewId NOT IN {{ Array(excludedViewIds, String) }}
+    GROUP BY
+        viewId
+
+TYPE endpoint

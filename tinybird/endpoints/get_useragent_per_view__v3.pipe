@@ -1,0 +1,19 @@
+DESCRIPTION >
+    Get the user agent details for a specific view
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        country,
+        city,
+        browser,
+        os,
+        device
+    FROM
+        pm_click_events__v1
+    WHERE
+        view_id = {{ String(viewId, required=True) }}
+    LIMIT 1
+
+TYPE endpoint

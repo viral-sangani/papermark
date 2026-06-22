@@ -6,10 +6,16 @@ import { createSlackMessage } from "./templates";
 import { SlackEventData, SlackIntegrationServer } from "./types";
 
 export class SlackEventManager {
-  private client: SlackClient;
+  private _client: SlackClient | null = null;
 
-  constructor() {
-    this.client = new SlackClient();
+  // Lazily instantiate the Slack client so importing this module (and the
+  // routes that depend on it, e.g. /api/views) does not throw when Slack is
+  // not configured. The client is only built the first time it's actually used.
+  private get client(): SlackClient {
+    if (!this._client) {
+      this._client = new SlackClient();
+    }
+    return this._client;
   }
 
   /**
@@ -161,18 +167,31 @@ export class SlackEventManager {
   }
 }
 
-export const slackEventManager = new SlackEventManager();
+// Lazy singleton: never construct at module load. Even though SlackClient is
+// now lazy inside the manager, keeping the manager itself lazy guarantees that
+// importing this module (e.g. when the Trigger.dev worker indexes every task
+// file at startup) can never throw, regardless of Slack configuration.
+let _slackEventManager: SlackEventManager | null = null;
+function getSlackEventManager(): SlackEventManager {
+  if (!_slackEventManager) {
+    _slackEventManager = new SlackEventManager();
+  }
+  return _slackEventManager;
+}
 
 export async function notifyDocumentView(
   data: Omit<SlackEventData, "eventType">,
 ) {
-  await slackEventManager.processEvent({ ...data, eventType: "document_view" });
+  await getSlackEventManager().processEvent({
+    ...data,
+    eventType: "document_view",
+  });
 }
 
 export async function notifyDataroomAccess(
   data: Omit<SlackEventData, "eventType">,
 ) {
-  await slackEventManager.processEvent({
+  await getSlackEventManager().processEvent({
     ...data,
     eventType: "dataroom_access",
   });
@@ -181,7 +200,7 @@ export async function notifyDataroomAccess(
 export async function notifyDocumentDownload(
   data: Omit<SlackEventData, "eventType">,
 ) {
-  await slackEventManager.processEvent({
+  await getSlackEventManager().processEvent({
     ...data,
     eventType: "document_download",
   });

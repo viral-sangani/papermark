@@ -81,9 +81,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isDataroom = router.pathname.startsWith("/datarooms/[id]");
 
-  const [sidebarOpen, setSidebarOpen] = useState(() =>
-    getInitialSidebarState(isDataroom),
-  );
+  // Initialize to the SAME value the server renders (getInitialSidebarState
+  // returns false when window is undefined). Reading the cookie during the
+  // initial client render would make the first client paint differ from the
+  // server HTML (sidebar data-state "collapsed" vs "expanded") and throw a
+  // hydration mismatch. We resolve the real state in the effect below, after
+  // hydration has completed.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Apply the persisted (cookie) / default sidebar state after mount.
+  useEffect(() => {
+    setSidebarOpen(getInitialSidebarState(isDataroom));
+  }, [isDataroom]);
 
   const handleSidebarOpenChange = useCallback(
     (open: boolean) => {

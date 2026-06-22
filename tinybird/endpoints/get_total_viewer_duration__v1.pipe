@@ -1,0 +1,15 @@
+DESCRIPTION >
+    Get the total duration across the given views for a viewer
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        SUM(duration) AS sum_duration
+    FROM
+        page_views__v3
+    WHERE
+        viewId IN splitByChar(',', {{ String(viewIds, required=true) }})
+        AND time >= {{ Int64(since, required=true) }}
+
+TYPE endpoint

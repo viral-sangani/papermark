@@ -25,51 +25,42 @@ export class MultiRegionS3Store extends S3Store {
     // Initialize with EU config as default
     const euConfig = getStorageConfig();
 
-    // Create S3 client config for super() call (omit endpoint if empty/undefined)
-    const superS3Config: any = {
-      bucket: euConfig.bucket,
-      region: euConfig.region,
-      credentials: {
-        accessKeyId: euConfig.accessKeyId,
-        secretAccessKey: euConfig.secretAccessKey,
-      },
+    // Build an S3 client config from a StorageConfig. When a custom endpoint is
+    // set (e.g. MinIO or another S3-compatible provider) we must pass it through
+    // and use path-style addressing — MinIO serves buckets as <endpoint>/<bucket>
+    // rather than virtual-host style. Without this the tus uploader hits real
+    // AWS and fails with InvalidAccessKeyId.
+    const buildS3Config = (config: StorageConfig): any => {
+      const s3Config: any = {
+        bucket: config.bucket,
+        region: config.region,
+        credentials: {
+          accessKeyId: config.accessKeyId,
+          secretAccessKey: config.secretAccessKey,
+        },
+      };
+      if (config.endpoint) {
+        s3Config.endpoint = config.endpoint;
+        s3Config.forcePathStyle = true;
+      }
+      return s3Config;
     };
 
     super({
       partSize: 8 * 1024 * 1024, // 8MiB parts
-      s3ClientConfig: superS3Config,
+      s3ClientConfig: buildS3Config(euConfig),
     });
 
     // Store configurations
     this.euConfig = euConfig;
 
-    // Create EU S3 client configuration (omit endpoint if empty/undefined)
-    const euS3Config: any = {
-      bucket: euConfig.bucket,
-      region: euConfig.region,
-      credentials: {
-        accessKeyId: euConfig.accessKeyId,
-        secretAccessKey: euConfig.secretAccessKey,
-      },
-    };
-
-    this.euClient = new S3(euS3Config);
+    this.euClient = new S3(buildS3Config(euConfig));
 
     // Initialize US configuration and client
     try {
       this.usConfig = getStorageConfig("us-east-2");
 
-      // Create US S3 client configuration (omit endpoint if empty/undefined)
-      const usS3Config: any = {
-        bucket: this.usConfig.bucket,
-        region: this.usConfig.region,
-        credentials: {
-          accessKeyId: this.usConfig.accessKeyId,
-          secretAccessKey: this.usConfig.secretAccessKey,
-        },
-      };
-
-      this.usClient = new S3(usS3Config);
+      this.usClient = new S3(buildS3Config(this.usConfig));
     } catch (error) {
       this.usConfig = euConfig;
       this.usClient = this.euClient;

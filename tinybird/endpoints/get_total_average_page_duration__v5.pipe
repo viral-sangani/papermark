@@ -1,0 +1,23 @@
+DESCRIPTION >
+    Get the average duration per page across distinct views for a document
+
+NODE distinct_durations
+SQL >
+    %
+    SELECT versionNumber, pageNumber, viewId, SUM(duration) AS distinct_duration
+    FROM page_views__v3
+    WHERE
+        documentId = {{ String(documentId, required=true) }}
+        AND time >= {{ Int64(since, required=true) }}
+        AND linkId NOT IN splitByChar(',', {{ String(excludedLinkIds, required=True) }})
+        AND viewId NOT IN splitByChar(',', {{ String(excludedViewIds, required=True) }})
+    GROUP BY versionNumber, pageNumber, viewId
+
+NODE endpoint
+SQL >
+    SELECT versionNumber, pageNumber, AVG(distinct_duration) AS avg_duration
+    FROM distinct_durations
+    GROUP BY versionNumber, pageNumber
+    ORDER BY versionNumber ASC, pageNumber ASC
+
+TYPE endpoint

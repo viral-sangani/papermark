@@ -65,6 +65,8 @@ export async function generateFreshPresignedUrl(
   const config = await getTeamStorageConfigById(teamId);
 
   const client = new S3Client({
+    endpoint: config.endpoint || undefined,
+    forcePathStyle: config.endpoint ? true : undefined,
     region: s3Key.region,
     credentials: {
       accessKeyId: config.accessKeyId,

@@ -64,7 +64,15 @@ export default async function handler(
 
     const { client, config } = await getTeamS3ClientAndConfig(teamId);
 
-    if (config.distributionHost) {
+    // The distributionHost branch signs CloudFront URLs and requires the
+    // CloudFront key pair. For S3-compatible endpoints without CloudFront
+    // (e.g. local MinIO), those keys are absent — fall through to native S3
+    // presigning below instead of producing an unusable https://<host> URL.
+    if (
+      config.distributionHost &&
+      config.distributionKeyId &&
+      config.distributionKeyContents
+    ) {
       const distributionUrl = new URL(
         key,
         `https://${config.distributionHost}`,

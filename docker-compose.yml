@@ -1,0 +1,106 @@
+# Local development infrastructure for Papermark.
+#
+# Brings up the services Papermark needs to run on a single machine:
+#   - postgres : the primary application database (Prisma).
+#   - minio    : S3-compatible object storage (replaces AWS S3 / Vercel Blob).
+#   - minio-setup : one-shot job that creates the buckets MinIO needs.
+#   - redis    : standard Redis, used as the backing store for SRH below.
+#   - srh      : "serverless-redis-http" – exposes the *Upstash REST API* on top
+#                of plain Redis. Papermark talks to Redis via @upstash/redis,
+#                which speaks HTTP (not the Redis wire protocol), so this shim is
+#                what makes rate-limiting / OTP / view-tracking work locally.
+#
+# Start everything with:  docker compose up -d
+# Tear it all down with:  docker compose down            (keeps data)
+#                         docker compose down -v          (also wipes volumes)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: papermark-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: papermark
+      POSTGRES_PASSWORD: papermark
+      POSTGRES_DB: papermark
+    ports:
+      # Host 15432 -> container 5432 (5432/5433/5434 are taken by other local projects)
+      - "15432:5432"
+    volumes:
+      - papermark-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U papermark -d papermark"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: papermark-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9100:9000"   # S3 API   (host 9100 -> container 9000)
+      - "9101:9001"   # web console (http://localhost:9101)
+    volumes:
+      - papermark-minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: create the buckets Papermark expects and make the main one public
+  # (public-read) so generated object URLs are viewable without signed requests.
+  minio-setup:
+    image: minio/mc:latest
+    container_name: papermark-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/papermark &&
+      mc mb --ignore-existing local/papermark-archive &&
+      mc anonymous set download local/papermark &&
+      echo 'MinIO buckets ready';
+      "
+
+  redis:
+    image: redis:7-alpine
+    container_name: papermark-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - papermark-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Upstash-REST-compatible HTTP frontend for the Redis container above.
+  # Papermark's @upstash/redis client points at this on http://localhost:8079
+  # with token "papermark_local_token".
+  srh:
+    image: hiett/serverless-redis-http:latest
+    container_name: papermark-srh
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: papermark_local_token
+      SRH_CONNECTION_STRING: "redis://redis:6379"
+    ports:
+      - "8085:80"   # host 8085 -> container 80
+
+volumes:
+  papermark-postgres:
+  papermark-minio:
+  papermark-redis:

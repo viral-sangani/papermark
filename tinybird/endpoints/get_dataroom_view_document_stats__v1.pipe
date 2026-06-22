@@ -1,0 +1,19 @@
+DESCRIPTION >
+    Get duration and pages viewed per view for dataroom documents
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        viewId,
+        documentId,
+        SUM(duration) AS sum_duration,
+        COUNT(DISTINCT pageNumber) AS pages_viewed
+    FROM
+        page_views__v3
+    WHERE
+        viewId IN splitByChar(',', {{ String(viewIds, required=True) }})
+    GROUP BY
+        viewId, documentId
+
+TYPE endpoint

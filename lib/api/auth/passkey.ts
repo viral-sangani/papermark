@@ -10,6 +10,10 @@ export async function startServerPasskeyRegistration({
   session: Session;
 }) {
   if (!session) throw new Error("Not logged in");
+  if (!hanko)
+    throw new Error(
+      "Passkeys are not configured (set HANKO_API_KEY and NEXT_PUBLIC_HANKO_TENANT_ID).",
+    );
 
   const sessionUser = session.user as CustomUser;
 
@@ -36,6 +40,10 @@ export async function finishServerPasskeyRegistration({
   session: Session;
 }) {
   if (!session) throw new Error("Not logged in");
+  if (!hanko)
+    throw new Error(
+      "Passkeys are not configured (set HANKO_API_KEY and NEXT_PUBLIC_HANKO_TENANT_ID).",
+    );
 
   await hanko.registration.finalize(credential);
 
