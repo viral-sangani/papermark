@@ -7,7 +7,7 @@ import { getServerSession } from "next-auth";
 import z from "zod";
 
 import { installIntegration } from "@/lib/integrations/install";
-import { getSlackEnv } from "@/lib/integrations/slack/env";
+import { getSlackEnv, isSlackConfigured } from "@/lib/integrations/slack/env";
 import { SlackCredential } from "@/lib/integrations/slack/types";
 import { encryptSlackToken } from "@/lib/integrations/slack/utils";
 import prisma from "@/lib/prisma";
@@ -23,6 +23,13 @@ const oAuthCallbackSchema = z.object({
 });
 
 export const GET = async (req: Request) => {
+  // If Slack isn't configured we can't complete an OAuth handshake; send the
+  // user back to the settings page with a readable error instead of crashing.
+  if (!isSlackConfigured()) {
+    redirect(
+      `/settings/slack?error=${encodeURIComponent("Slack integration is not configured on this deployment.")}`,
+    );
+  }
   const env = getSlackEnv();
 
   let team: Pick<Team, "id" | "plan"> | null = null;

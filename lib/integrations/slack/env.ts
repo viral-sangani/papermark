@@ -28,3 +28,21 @@ export const getSlackEnv = () => {
 
   return env;
 };
+
+/**
+ * Non-throwing variant of getSlackEnv: returns the parsed env, or `null` when
+ * the SLACK_* variables are not configured. Self-hosted deployments that don't
+ * set up a Slack app should treat the integration as simply unavailable rather
+ * than surfacing a 500 / "Internal server error". Routes can use this to return
+ * a clean "not configured" state.
+ */
+export const getSlackEnvSafe = (): SlackEnv | null => {
+  try {
+    return getSlackEnv();
+  } catch {
+    return null;
+  }
+};
+
+/** True when a Slack app is configured (all SLACK_* env vars present). */
+export const isSlackConfigured = (): boolean => getSlackEnvSafe() !== null;

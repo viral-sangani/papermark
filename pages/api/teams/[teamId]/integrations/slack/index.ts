@@ -4,7 +4,7 @@ import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { getServerSession } from "next-auth/next";
 import { z } from "zod";
 
-import { getSlackEnv } from "@/lib/integrations/slack/env";
+import { getSlackEnv, isSlackConfigured } from "@/lib/integrations/slack/env";
 import {
   SlackCredential,
   SlackCredentialPublic,
@@ -51,6 +51,13 @@ export default async function handler(
 
   if (!userTeam) {
     return res.status(403).json({ error: "Access denied" });
+  }
+
+  // When no Slack app is configured (self-hosted deployments without SLACK_*
+  // env vars), treat the integration as "not installed" rather than throwing.
+  // The settings page renders its "Connect to Slack" empty state on a 404.
+  if (!isSlackConfigured()) {
+    return res.status(404).json({ error: "Slack integration not configured" });
   }
 
   switch (req.method) {

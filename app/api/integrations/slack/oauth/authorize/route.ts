@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/auth-options";
 import { getServerSession } from "next-auth/next";
 import { z } from "zod";
 
+import { isSlackConfigured } from "@/lib/integrations/slack/env";
 import { getSlackInstallationUrl } from "@/lib/integrations/slack/install";
 import prisma from "@/lib/prisma";
 import { CustomUser } from "@/lib/types";
@@ -18,6 +19,18 @@ export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // No Slack app configured on this deployment — return a clear, actionable
+    // message instead of a generic 500. The settings page shows this in a toast.
+    if (!isSlackConfigured()) {
+      return NextResponse.json(
+        {
+          error:
+            "Slack integration is not configured on this deployment. An admin must set the SLACK_* environment variables.",
+        },
+        { status: 501 },
+      );
     }
 
     const { teamId } = oAuthAuthorizeSchema.parse(getSearchParams(req.url));
