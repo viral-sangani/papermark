@@ -17,6 +17,17 @@ import { CustomUser } from "@/lib/types";
 
 const VERCEL_DEPLOYMENT = !!process.env.VERCEL_URL;
 
+// Use the __Secure- prefixed, secure session cookie whenever the site is served
+// over HTTPS (Vercel OR a self-hosted HTTPS deployment). getToken() in
+// middleware looks for the __Secure- prefixed cookie on https requests, so the
+// cookie NextAuth writes must match — otherwise the session is never read and
+// the user is bounced to /login despite being signed in.
+const USE_SECURE_COOKIES =
+  VERCEL_DEPLOYMENT ||
+  process.env.NEXTAUTH_URL?.startsWith("https://") ||
+  process.env.NEXT_PUBLIC_BASE_URL?.startsWith("https://") ||
+  false;
+
 function getMainDomainUrl(): string {
   if (process.env.NODE_ENV === "development") {
     return process.env.NEXTAUTH_URL || "http://localhost:3000";
@@ -189,13 +200,15 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   cookies: {
     sessionToken: {
-      name: `${VERCEL_DEPLOYMENT ? "__Secure-" : ""}next-auth.session-token`,
+      name: `${USE_SECURE_COOKIES ? "__Secure-" : ""}next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
+        // The wildcard apex domain is Vercel/papermark-specific; self-hosted
+        // single-host deployments must leave it undefined (host-only cookie).
         domain: VERCEL_DEPLOYMENT ? ".papermark.com" : undefined,
-        secure: VERCEL_DEPLOYMENT,
+        secure: USE_SECURE_COOKIES,
       },
     },
   },

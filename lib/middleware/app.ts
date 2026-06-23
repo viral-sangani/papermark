@@ -5,6 +5,17 @@ import { getToken } from "next-auth/jwt";
 const LOGIN_PATH = "/login";
 const DEFAULT_AUTH_REDIRECT_PATH = "/dashboard";
 
+// Must match how auth-options writes the session cookie: on an HTTPS deployment
+// the cookie is __Secure- prefixed. Behind a TLS-terminating proxy the request
+// can look like HTTP to the app, so be explicit instead of relying on
+// getToken's auto-detection — otherwise it reads the wrong cookie name and
+// treats signed-in users as anonymous.
+const USE_SECURE_COOKIES =
+  !!process.env.VERCEL_URL ||
+  process.env.NEXTAUTH_URL?.startsWith("https://") ||
+  process.env.NEXT_PUBLIC_BASE_URL?.startsWith("https://") ||
+  false;
+
 function isProtocolRelativePath(path: string) {
   return path[1] === "/" || path[1] === "\\";
 }
@@ -54,6 +65,7 @@ export default async function AppMiddleware(req: NextRequest) {
   const token = (await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET,
+    secureCookie: USE_SECURE_COOKIES,
   })) as {
     email?: string;
     user?: {
