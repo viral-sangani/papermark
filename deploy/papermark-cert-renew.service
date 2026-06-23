@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew Let's Encrypt certificates (dataroom.cesto.co + shared) and reload nginx
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/papermark/deploy/renew-certs.sh

@@ -1,0 +1,11 @@
+[Unit]
+Description=Twice-daily Let's Encrypt renewal check
+
+[Timer]
+# Run at ~03:17 and ~15:17 with up to 1h random jitter (LE recommends 2x/day).
+OnCalendar=*-*-* 03,15:17:00
+RandomizedDelaySec=3600
+Persistent=true
+
+[Install]
+WantedBy=timers.target
