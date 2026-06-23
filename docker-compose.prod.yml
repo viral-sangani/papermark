@@ -44,6 +44,35 @@ services:
     command: >
       sh -c "pnpm prisma migrate deploy && pnpm exec next start -H 0.0.0.0 -p 3000"
 
+  # Trigger.dev worker — runs the background tasks (PDF->image conversion, etc.).
+  # Reuses the app image (has Node + all deps + the trigger config). It executes
+  # tasks on THIS network so it can reach the private Postgres (postgres:5432)
+  # and MinIO, while connecting to Trigger.dev cloud for orchestration. Auth is
+  # non-interactive via TRIGGER_ACCESS_TOKEN (a personal access token).
+  worker:
+    image: papermark-app:latest
+    container_name: papermark-worker
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      # Personal access token for non-interactive `trigger.dev dev` auth.
+      TRIGGER_ACCESS_TOKEN: ${TRIGGER_ACCESS_TOKEN:?TRIGGER_ACCESS_TOKEN required}
+    volumes:
+      # The trigger CLI injects a .env file into the task runtime; mount the prod
+      # env as /app/.env so tasks get POSTGRES_PRISMA_URL, INTERNAL_API_KEY, etc.
+      - ./.env.production:/app/.env:ro
+    depends_on:
+      app:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    # Run the dev worker (connects to Trigger cloud, executes tasks locally).
+    # Use npx so the trigger CLI is fetched (it isn't a project dependency).
+    command: ["npx", "-y", "trigger.dev@4", "dev"]
+
   postgres:
     image: postgres:16-alpine
     container_name: papermark-prod-postgres
