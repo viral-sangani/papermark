@@ -246,20 +246,33 @@ export const authOptions: NextAuthOptions = {
   },
   events: {
     async createUser(message) {
-      await identifyUser(message.user.email ?? message.user.id);
-      await trackAnalytics({
-        event: "User Signed Up",
-        email: message.user.email,
-        userId: message.user.id,
-      });
-
-      await qstash.publishJSON({
-        url: `${process.env.NEXT_PUBLIC_BASE_URL ?? getMainDomainUrl()}/api/cron/welcome-user`,
-        body: {
+      // None of these post-signup side effects (analytics, the QStash-queued
+      // welcome email) are essential, and they depend on optional services
+      // (Jitsu/PostHog, Upstash QStash). If any throws, the createUser event
+      // would abort the sign-in and bounce the user back to /login — so swallow
+      // failures here and let the account creation / session proceed.
+      try {
+        await identifyUser(message.user.email ?? message.user.id);
+        await trackAnalytics({
+          event: "User Signed Up",
+          email: message.user.email,
           userId: message.user.id,
-        },
-        delay: 15 * 60,
-      });
+        });
+      } catch (error) {
+        console.error("createUser analytics failed (non-fatal):", error);
+      }
+
+      try {
+        await qstash.publishJSON({
+          url: `${process.env.NEXT_PUBLIC_BASE_URL ?? getMainDomainUrl()}/api/cron/welcome-user`,
+          body: {
+            userId: message.user.id,
+          },
+          delay: 15 * 60,
+        });
+      } catch (error) {
+        console.error("welcome-user enqueue failed (non-fatal):", error);
+      }
     },
   },
 };
