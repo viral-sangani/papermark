@@ -565,12 +565,65 @@ export const uploadImage = async (
   file: File,
   uploadType: "profile" | "assets" = "assets",
 ) => {
+  // Self-hosted (S3/MinIO) deployments don't have Vercel Blob. Route public
+  // image assets (logos, banners, avatars, link-preview images) through the
+  // public S3 bucket instead, returning a directly-loadable URL. The Vercel
+  // Blob path is kept for the hosted product.
+  if (process.env.NEXT_PUBLIC_UPLOAD_TRANSPORT === "s3") {
+    return uploadImageToS3(file, uploadType);
+  }
+
   const newBlob = await upload(file.name, file, {
     access: "public",
     handleUploadUrl: `/api/file/image-upload?type=${uploadType}`,
   });
 
   return newBlob.url;
+};
+
+const uploadImageToS3 = async (
+  file: File,
+  uploadType: "profile" | "assets",
+): Promise<string> => {
+  const presignRes = await fetch(
+    `/api/file/image-upload-s3?type=${uploadType}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType: file.type,
+      }),
+    },
+  );
+
+  if (!presignRes.ok) {
+    let message = `Image upload failed (status ${presignRes.status})`;
+    try {
+      const body = await presignRes.json();
+      if (body?.error) message = body.error;
+    } catch {
+      // ignore non-JSON error bodies
+    }
+    throw new Error(message);
+  }
+
+  const { uploadUrl, publicUrl } = (await presignRes.json()) as {
+    uploadUrl: string;
+    publicUrl: string;
+  };
+
+  const putRes = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+
+  if (!putRes.ok) {
+    throw new Error(`Image upload to storage failed (status ${putRes.status})`);
+  }
+
+  return publicUrl;
 };
 
 /**

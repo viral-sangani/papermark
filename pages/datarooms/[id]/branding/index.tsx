@@ -623,12 +623,13 @@ export default function DataroomBrandPage() {
 
     setIsLoading(true);
 
+    try {
     // Upload the image if it's a data URL
     let blobUrl: string | null = logo && logo.startsWith("data:") ? null : logo;
     if (logo && logo.startsWith("data:")) {
       // Convert the data URL to a blob
       const blob = convertDataUrlToFile({ dataUrl: logo });
-      // Upload the blob to vercel storage
+      // Upload the blob to storage (S3/MinIO or Vercel Blob)
       blobUrl = await uploadImage(blob);
       setLogo(blobUrl);
     }
@@ -729,8 +730,26 @@ export default function DataroomBrandPage() {
         viewerHeaderStyle,
         hideFolderIconsInMain,
       };
-      setIsLoading(false);
       toast.success("Branding updated successfully");
+    } else {
+      let message = "Failed to save branding";
+      try {
+        const body = await res.json();
+        if (body?.error) message = body.error;
+      } catch {
+        // non-JSON error body
+      }
+      toast.error(message);
+    }
+    } catch (error) {
+      // Most commonly an image upload failure — surface it instead of leaving
+      // the Save button stuck in its loading state forever.
+      console.error("Branding save failed:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save branding",
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 

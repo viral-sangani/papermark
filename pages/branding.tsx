@@ -479,6 +479,7 @@ export default function Branding() {
     }
 
     setIsLoading(true);
+    try {
     let logoBlobUrl: string | null =
       logo && logo.startsWith("data:") ? null : logo;
     if (logo && logo.startsWith("data:")) {
@@ -596,7 +597,6 @@ export default function Branding() {
 
     if (res.ok) {
       mutate(`/api/teams/${teamInfo?.currentTeam?.id}/branding`);
-      setIsLoading(false);
       if (hasLayoutSaveAccess) {
         initialLayoutSnapshotRef.current = {
           cardLayout,
@@ -607,10 +607,19 @@ export default function Branding() {
       }
       toast.success("Branding updated successfully");
     } else {
-      setIsLoading(false);
       const errorData = await res.json().catch(() => ({}));
       console.error("Save error:", errorData);
       toast.error(errorData.message || "Failed to save branding");
+    }
+    } catch (error) {
+      // Most commonly an image upload failure — surface it instead of leaving
+      // the Save button stuck in its loading state forever.
+      console.error("Branding save failed:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save branding",
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
