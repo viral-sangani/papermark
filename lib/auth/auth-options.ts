@@ -27,7 +27,11 @@ const ALLOWED_EMAIL_DOMAINS = (process.env.ALLOWED_EMAIL_DOMAINS || "")
 
 function isEmailDomainAllowed(email: string | null | undefined): boolean {
   if (ALLOWED_EMAIL_DOMAINS.length === 0) return true; // no restriction
-  const domain = extractEmailDomain(email ?? "");
+  // extractEmailDomain returns the domain WITH a leading "@" (e.g. "@cesto.co");
+  // strip it so it matches the bare-domain allowlist entries ("cesto.co").
+  const domain = extractEmailDomain(email ?? "")
+    ?.replace(/^@/, "")
+    .toLowerCase();
   return !!domain && ALLOWED_EMAIL_DOMAINS.includes(domain);
 }
 
