@@ -45,7 +45,11 @@ export const sendEmail = async ({
   const html = await render(react);
   const plainText = toPlainText(html);
 
-  const fromAddress =
+  // Sender addresses. Self-hosters must send from a domain verified in Resend,
+  // so allow overriding via env. RESEND_FROM is the catch-all "from" for
+  // transactional/login/verification mail; RESEND_FROM_MARKETING for marketing.
+  // Falls back to the upstream papermark.com addresses when unset.
+  const defaultFrom =
     from ??
     (marketing
       ? "Marc from Papermark <marc@updates.papermark.com>"
@@ -57,12 +61,22 @@ export const sendEmail = async ({
             ? "Marc Seitz <marc@papermark.com>"
             : "Marc from Papermark <marc@papermark.com>");
 
+  const fromAddress =
+    from ??
+    (marketing
+      ? process.env.RESEND_FROM_MARKETING ||
+        process.env.RESEND_FROM ||
+        defaultFrom
+      : process.env.RESEND_FROM || defaultFrom);
+
   try {
     const { data, error } = await resend.emails.send({
       from: fromAddress,
       to: test ? "delivered@resend.dev" : to,
       cc: cc,
-      replyTo: marketing ? "marc@papermark.com" : replyTo,
+      replyTo: marketing
+        ? process.env.RESEND_REPLY_TO || "marc@papermark.com"
+        : replyTo,
       subject,
       react,
       scheduledAt,
