@@ -77,3 +77,4 @@ _public/
 .env.production
 .env.*
 !.env.example
+.env.worker

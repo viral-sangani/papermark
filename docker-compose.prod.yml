@@ -55,9 +55,11 @@ services:
     restart: unless-stopped
     env_file:
       - .env.production
-    environment:
-      # Personal access token for non-interactive `trigger.dev dev` auth.
-      TRIGGER_ACCESS_TOKEN: ${TRIGGER_ACCESS_TOKEN:?TRIGGER_ACCESS_TOKEN required}
+      # Server-only worker secrets (TRIGGER_ACCESS_TOKEN). Kept in a separate
+      # file so it is NOT overwritten by `rsync` of .env.production from dev.
+      # required=false lets `docker compose config` validate without it locally.
+      - path: .env.worker
+        required: false
     volumes:
       # The trigger CLI injects a .env file into the task runtime; mount the prod
       # env as /app/.env so tasks get POSTGRES_PRISMA_URL, INTERNAL_API_KEY, etc.
