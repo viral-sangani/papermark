@@ -14,8 +14,22 @@ import hanko from "@/lib/hanko";
 import { jackson } from "@/lib/jackson";
 import prisma from "@/lib/prisma";
 import { CustomUser } from "@/lib/types";
+import { extractEmailDomain } from "@/lib/utils/email-domain";
 
 const VERCEL_DEPLOYMENT = !!process.env.VERCEL_URL;
+
+// Email-domain allowlist for login/signup. Configure via ALLOWED_EMAIL_DOMAINS
+// (comma-separated, e.g. "cesto.co"). Empty/unset = no restriction.
+const ALLOWED_EMAIL_DOMAINS = (process.env.ALLOWED_EMAIL_DOMAINS || "")
+  .split(",")
+  .map((d) => d.trim().toLowerCase())
+  .filter(Boolean);
+
+function isEmailDomainAllowed(email: string | null | undefined): boolean {
+  if (ALLOWED_EMAIL_DOMAINS.length === 0) return true; // no restriction
+  const domain = extractEmailDomain(email ?? "");
+  return !!domain && ALLOWED_EMAIL_DOMAINS.includes(domain);
+}
 
 // Use the __Secure- prefixed, secure session cookie whenever the site is served
 // over HTTPS (Vercel OR a self-hosted HTTPS deployment). getToken() in
@@ -67,6 +81,15 @@ export const authOptions: NextAuthOptions = {
     }),
     EmailProvider({
       async sendVerificationRequest({ identifier, url }) {
+        // Don't even send a login email to a disallowed domain.
+        if (!isEmailDomainAllowed(identifier)) {
+          console.log(
+            "[Login blocked] email domain not allowed:",
+            identifier,
+          );
+          return;
+        }
+
         const hasValidNextAuthUrl = !!process.env.NEXTAUTH_URL;
         let finalUrl = url;
 
@@ -213,6 +236,17 @@ export const authOptions: NextAuthOptions = {
     },
   },
   callbacks: {
+    // Restrict who can sign in / sign up by email domain. Configure with
+    // ALLOWED_EMAIL_DOMAINS (comma-separated, e.g. "cesto.co,foo.com"). When
+    // unset, all domains are allowed (upstream behavior). Runs for EVERY
+    // provider (email magic-link, OTP code via the email callback, Google,
+    // LinkedIn, SAML), so it's a single central gate.
+    signIn: async ({ user }) => {
+      // Central gate: blocks login/signup for any disallowed email domain,
+      // across all providers. Returning false sends the user to the error page
+      // (?error=AccessDenied).
+      return isEmailDomainAllowed(user?.email);
+    },
     jwt: async (params) => {
       const { token, user, trigger, account } = params;
       if (!token.email) {
