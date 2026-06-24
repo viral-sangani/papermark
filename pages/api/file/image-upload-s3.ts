@@ -29,11 +29,15 @@ const uploadConfig = {
     maximumSizeInBytes: 2 * 1024 * 1024, // 2MB
   },
   assets: {
+    // NOTE: image/svg+xml is intentionally NOT allowed. SVGs can embed
+    // <script>, and these objects are served from the app's own subdomain
+    // (s3.dataroom.cesto.co) with public read — opening a malicious SVG
+    // directly would execute JS in that origin (stored XSS). All branding /
+    // asset upload UIs only offer PNG/JPEG anyway; favicons are raster .ico.
     allowedContentTypes: [
       "image/png",
       "image/jpeg",
       "image/jpg",
-      "image/svg+xml",
       "image/x-icon",
       "image/ico",
       "image/vnd.microsoft.icon",
